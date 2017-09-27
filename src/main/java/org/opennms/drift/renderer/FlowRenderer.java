@@ -48,7 +48,9 @@ public class FlowRenderer {
             result.append("\n");
         }
 
+        int i=1;
         for (FlowBody body : flow.getBodies()) {
+            result.append("Payload " + i + ":\n");
             for (FieldValue f : body.getFields()) {
                 result.append(
                         String.format(TEMPLATE,
@@ -56,6 +58,7 @@ public class FlowRenderer {
                                 f.getValue()));
                 result.append("\n");
             }
+            i++;
         }
 
         return result.toString();

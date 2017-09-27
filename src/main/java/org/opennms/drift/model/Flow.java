@@ -78,11 +78,13 @@ public class Flow {
         return new FlowBody(this, offset);
     }
 
+    // TODO MVR this is protocol specific and should not be here
     public int getBodyCount() throws Exception {
         Field f = getHeader().getField("count");
         return new FieldValue(f, 0, packet).getValue();
     }
 
+    // TODO MVR this is protocol specific and should not be here
     public int getVersion() throws Exception {
         Field f = getHeader().getField("version");
         Integer value = new FieldValue(f, 0, packet).getValue();

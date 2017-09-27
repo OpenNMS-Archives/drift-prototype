@@ -64,7 +64,7 @@ public class DriftApplication {
 //		SpringApplication.run(DriftApplication.class, args);
 
 		DatagramSocket serverSocket = new DatagramSocket(8877, InetAddress.getLocalHost());
-		byte[] receiveData = new byte[100];
+		byte[] receiveData = new byte[4096]; // TODO MVR ensure that all protocols can be read with this setting
 		while(true)
 		{
 			try {
@@ -72,7 +72,7 @@ public class DriftApplication {
 				serverSocket.receive(receivePacket);
 
 				Flow flow = flowDefinition.parse(receiveData);
-				System.out.println("Received flow from " + receivePacket.getAddress() +":" + receivePacket.getPort() + " version: " + flow.getVersion());
+				System.out.println("Received flow package from " + receivePacket.getAddress() +":" + receivePacket.getPort() + ", Protocol: Netflow, Version: " + flow.getVersion());
 				if (flow.getVersion() != 5) {
 					System.err.println("Unsupported version. Dropping");
 					continue;
