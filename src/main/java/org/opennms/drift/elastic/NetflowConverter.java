@@ -26,33 +26,38 @@
  *     http://www.opennms.com/
  *******************************************************************************/
 
-package org.opennms.drift.model;
+package org.opennms.drift.elastic;
 
+import java.net.InetAddress;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
-import java.util.NoSuchElementException;
 
-import org.opennms.drift.definition.Field;
+import org.opennms.drift.model.Flow;
+import org.opennms.drift.model.FlowBody;
 
-public class FlowBody {
-    private final Flow flow;
-    private final int offset;
+public class NetflowConverter {
 
-    public FlowBody(Flow flow, int offset) {
-        this.flow = flow;
-        this.offset = offset;
-    }
+    public List<NetflowDocument> convert(Flow flowPackage) throws Exception {
+        List<NetflowDocument> documents = new ArrayList<>();
 
-    public List<FieldValue> getFields() {
-        List<FieldValue> fields = new ArrayList<>();
-        for (Field f : flow.getDefinition().getBody()) {
-            fields.add(new FieldValue(f, offset, flow.getPacket()));
+        int i=1;
+        for (FlowBody body : flowPackage.getBodies()) {
+            final NetflowDocument document = new NetflowDocument();
+            document.setCount(flowPackage.getHeader().getValue("count"));
+            document.setVersion(flowPackage.getHeader().getValue("version"));
+            document.setProtocol("netflow");
+            document.setFlowId(i);
+            document.setOctets(body.getValue("dOctets"));
+            document.setTimestamp(new Date(((Integer) flowPackage.getHeader().getValue("unix_secs")) * 1000L));
+            document.setSourceAddress(((InetAddress)body.getValue("srcaddr")).toString());
+            document.setSourcePort(body.getValue("srcport"));
+            document.setDestAddress(((InetAddress)body.getValue("dstaddr")).toString());
+            document.setDestPort(body.getValue("dstport"));
+            documents.add(document);
+            i++;
         }
-        return fields;
-
+        return documents;
     }
 
-    public <T> T getValue(String fieldName) throws Exception {
-        return getFields().stream().filter(f -> f.getName().equals(fieldName)).findFirst().orElseThrow(() -> new NoSuchElementException("TODO MVR")).getValue();
-    }
 }

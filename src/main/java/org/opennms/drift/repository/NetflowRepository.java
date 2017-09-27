@@ -26,23 +26,10 @@
  *     http://www.opennms.com/
  *******************************************************************************/
 
-package org.opennms.drift.model;
+package org.opennms.drift.repository;
 
-import org.opennms.drift.definition.Field;
+import org.opennms.drift.elastic.NetflowDocument;
+import org.springframework.data.elasticsearch.repository.ElasticsearchRepository;
 
-public class FlowHeader {
-    private final Flow flow;
-
-    public FlowHeader(Flow flow) {
-        this.flow = flow;
-    }
-
-    public Field getField(String field) {
-        Field f = flow.getDefinition().findHeaderField(field);
-        return f;
-    }
-
-    public <T> T getValue(String fieldName) throws Exception {
-        return new FieldValue(getField(fieldName), 0, flow.getPacket()).getValue();
-    }
+public interface NetflowRepository extends ElasticsearchRepository<NetflowDocument, String> {
 }
