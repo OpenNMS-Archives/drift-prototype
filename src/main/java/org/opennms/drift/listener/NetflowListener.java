@@ -62,7 +62,7 @@ public class NetflowListener {
         System.out.println("Listening to UDP Netflow v5 packages on port 8877");
 
 
-        DatagramSocket serverSocket = new DatagramSocket(8877, InetAddress.getLocalHost());
+        DatagramSocket serverSocket = new DatagramSocket(8877, null);
         byte[] receiveData = new byte[4096]; // TODO MVR ensure that all protocols can be read with this setting
         while(true) {
             try {
