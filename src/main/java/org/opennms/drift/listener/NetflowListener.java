@@ -79,6 +79,7 @@ public class NetflowListener {
                 System.out.println(flowString);
                 List<NetflowDocument> documents = new NetflowConverter().convert(flow);
                 for (NetflowDocument document : documents) {
+                    document.setExportAddress(receivePacket.getAddress().toString());
                     repository.save(document);
                 }
             } catch (Exception ex) {

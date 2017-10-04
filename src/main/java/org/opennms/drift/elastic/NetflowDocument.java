@@ -51,6 +51,8 @@ public class NetflowDocument {
 
     private int octets;
 
+    private String exportAddress;
+
     @JsonFormat (shape = JsonFormat.Shape.STRING, pattern ="yyyy-MM-dd'T'HH:mm:ss.SSSZZ")
     private Date timestamp;
     private String destAddress;
@@ -126,6 +128,10 @@ public class NetflowDocument {
         this.sourcePort = sourcePort;
     }
 
+    public int getSourcePort() {
+        return sourcePort;
+    }
+
     public void setSourceAddress(String sourceAddress) {
         this.sourceAddress = sourceAddress;
     }
@@ -140,5 +146,13 @@ public class NetflowDocument {
 
     public int getDestPort() {
         return destPort;
+    }
+
+    public String getExportAddress() {
+        return exportAddress;
+    }
+
+    public void setExportAddress(String exportAddress) {
+        this.exportAddress = exportAddress;
     }
 }
