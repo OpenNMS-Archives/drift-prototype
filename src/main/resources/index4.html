@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<head>
+    <meta charset="utf-8">
+    <script src="https://d3js.org/d3.v4.min.js"></script>
+    <script src="https://unpkg.com/d3-sankey@0.6"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/elasticsearch/13.3.1/elasticsearch.js"></script>
+    <style>
+        body {
+            padding: 10px;
+            min-width: 600px;
+            max-width: 1200px;
+            margin: auto;
+        }
+        #chart {
+            height: 500px;
+            font: 13px sans-serif;
+        }
+        .node rect {
+            fill-opacity: .9;
+            shape-rendering: crispEdges;
+            stroke-width: 0;
+        }
+        .node text {
+            text-shadow: 0 1px 0 #fff;
+        }
+        .link {
+            fill: none;
+            stroke: #000;
+            stroke-opacity: .2;
+        }
+        .link:hover {
+            stroke-opacity: .5;
+        }
+    </style>
+</head>
+<body>
+<div id="#chart">
+    <svg width="1000" height="600"></svg>
+</div>
+
+<script>
+
+    var colors = {
+        'environment':         '#edbd00',
+        'social':              '#367d85',
+        'animals':             '#97ba4c',
+        'health':              '#f5662b',
+        'research_ingredient': '#3f3e47',
+        'fallback':            '#9f9fa3'
+    };
+    function label(node) {
+        return node.address; //.replace(/\s*\(.*?\)$/, '');
+    }
+    function color(node, depth) {
+        var id = node.address.replace(/(_score)?(_\d+)?$/, '');
+        if (colors[id]) {
+            return colors[id];
+        } else if (depth > 0 && node.targetLinks && node.targetLinks.length == 1) {
+            return color(node.targetLinks[0].source, depth-1);
+        } else {
+            return null;
+        }
+    }
+
+    var svg = d3.select("svg"),
+        width = +svg.attr("width"),
+        height = +svg.attr("height");
+
+    var formatNumber = d3.format(",.2f");
+    var format = function(d) {
+        var bytes = d * 8;
+        if (bytes < 1024) {
+            return bytes;
+        }
+        if (bytes < 1024 * 1024) {
+            return formatNumber(bytes / 1024) + " KB";
+        }
+        if (bytes < 1024 * 1024 * 1024) {
+            return formatNumber(bytes / 1024 / 1024) + " MB";
+        }
+        if (bytes < 1024 * 1024 * 1024) {
+            return formatNumber(bytes / 1024 / 1024 / 1024) + " GB";
+        }
+        return formatNumber(bytes / 1024 / 1024 / 1024 / 1024) + " TB";
+    };
+
+    var sankey = d3.sankey()
+        .nodeWidth(16)
+        .nodePadding(8)
+        .extent([[1, 1], [width - 1, height - 100]]);
+
+    var link = svg.append("g")
+        .attr("class", "links")
+        .attr("fill", "none")
+        .attr("stroke", "#000")
+        .selectAll("path");
+
+    var node = svg.append("g")
+        .attr("class", "nodes")
+        .attr("font-family", "sans-serif")
+        .attr("font-size", 10)
+        .selectAll("g");
+
+
+    loadData()
+        .then(function(data) {
+            console.log("Building graph...");
+
+            var graph = {};
+            var nodes = [];
+            var links = [];
+            graph.nodes = nodes;
+            graph.links = links;
+
+            var createNode = function(data) {
+                var node = {
+                    address: data.address,
+                    raw: data
+                };
+                return node;
+            };
+
+            var findExistingNode = function(nodes, elementToFind) {
+                return nodes.find(function(node) {
+                    if (elementToFind.address === node.address) {
+                        return node;
+                    }
+                    return void 0;
+                });
+            };
+
+            // Build nodes
+            Object.keys(data).forEach(function(key) {
+                var source = data[key];
+                var node = createNode(source);
+                nodes.push(node);
+
+                // children
+                Object.keys(source.targets).forEach(function(targetKey) {
+                    var child = source.targets[targetKey];
+                    var childNode = findExistingNode(nodes, child);
+                    if (!childNode) {
+                        childNode = createNode(child);
+                        nodes.push(childNode);
+                    }
+
+                    // Build links
+                    links.push({
+                        "source": nodes.indexOf(node),
+                        "target": nodes.indexOf(childNode),
+                        "value": child.sum,
+                    })
+                })
+            });
+            console.log("with nodes:");
+            console.log(nodes);
+            console.log("with links:");
+            console.log(links);
+
+            console.log("Graph:");
+            console.log(graph);
+
+            // Sankey it
+            sankey(graph);
+
+            link = link
+                .data(graph.links)
+                .enter().append("g")
+                .attr("class", "link")
+                .append("path")
+                .attr("d", d3.sankeyLinkHorizontal())
+                .attr("stroke", function(link) {return color(link.source, 4) || color(link.target, 1) || colors.fallback;})
+                .attr("stroke-width", function(d) { return Math.max(1, d.width); });
+
+            link.append("title")
+                .text(function(d) { return d.source.address + " → " + d.target.address + "\n" + format(d.value); });
+
+            node = node
+                .data(graph.nodes)
+                .enter().append("g")
+                .attr("class", "node");
+
+            node.append("rect")
+                .attr("x", function(d) { return d.x0; })
+                .attr("y", function(d) { return d.y0; })
+                .attr("height", function(d) { return d.y1 - d.y0; })
+                .attr("width", function(d) { return d.x1 - d.x0; })
+                .attr("fill", function(node) { return color(node, 1) || colors.fallback; })
+                .attr("stroke", "#000");
+
+            node.append("text")
+                .attr("x", function(d) { return d.x0 - 6; })
+                .attr("y", function(d) { return (d.y1 + d.y0) / 2; })
+                .attr("dy", "0.35em")
+                .attr("text-anchor", "end")
+                .text(function(d) { return label(d); })
+            .filter(function(d) { return d.x0 < width / 2; })
+            .attr("x", function(d) { return d.x1 + 6; })
+            .attr("text-anchor", "start");
+
+            node.append("title")
+                .text(function(d) { return d.address + "\n" + format(d.value); });
+    });
+
+
+    // Fetches data from elastic search
+    function loadData() {
+        var client = new elasticsearch.Client({
+            host: 'http://127.0.0.1:9200',
+        });
+        client.ping({
+            requestTimeout: 30000,
+        }, function (error) {
+            if (error) {
+                console.error('elasticsearch cluster is down!');
+            } else {
+                console.log('All is well');
+            }
+        });
+
+        return client.search({
+            index: 'opennms',
+            type: 'netflow',
+            body: {
+                "size" : 0,
+                "aggregations":{
+                    "sourceBandwidth":{
+                        "terms":{
+                            "field": "sourceAddress"
+                        },
+                        "aggs":{
+                            "sum_octets": {
+                                "sum": {
+                                    "field" : "octets"
+                                }
+                            },
+                            "targets": {
+                                "terms":{
+                                    "field": "destAddress"
+                                },
+                                "aggs": {
+                                    "sum_octets": {
+                                        "sum": {
+                                            "field": "octets"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        })
+        .then(function (body) {
+            console.log("Data received:");
+            console.log(body);
+
+            // convert
+            var sourceBandwidth = body.aggregations.sourceBandwidth.buckets;
+            var data = {};
+
+            // TODO merge correctly, at the moment source and target addresses should never be the same
+            sourceBandwidth.forEach(function(d) {
+                data[d.key] = {};
+                data[d.key] = {
+                    "address": d.key,
+                    "sum": d.sum_octets.value, // incoming traffic
+                    "targets": {}
+                };
+
+                d.targets.buckets.forEach(function(b) {
+                    data[d.key].targets[b.key] = {
+                        "address": b.key,
+                        "sum": b.sum_octets.value, // outgoing traffic
+                    }
+                });
+
+            });
+
+            console.log("Data simplified:");
+            console.log(data);
+            return data;
+        }, function (error) {
+            console.trace(error.message);
+        });
+    }
+
+</script>
+</body>
