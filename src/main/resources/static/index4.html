@@ -31,14 +31,82 @@
         .link:hover {
             stroke-opacity: .5;
         }
+
+        .navigation ul {
+            display: block;
+            list-style-type: none;
+        }
+
+        .navigation li {
+            display: inline-block; /* or block with float left */
+            /* margin HERE! */
+        }
+
+        .navigation li a {
+            display: block;
+            /* padding and border HERE! */
+        }
+
+        .navigation li a {
+            background: #999;
+            color: #fff;
+            display: block;
+            padding: 10px;
+        }
+
+        .navigation li a:hover {
+            background: #555;
+        }
+
     </style>
 </head>
 <body>
-<div id="#chart">
-    <svg width="1000" height="600"></svg>
+<div>
+    <h1>Interval</h1>
+    <ul class="navigation">
+        <li><a href="#" onclick="updateInterval(0)">all Time</a></li>
+        <li><a href="#" onclick="updateInterval(1)">last 5 Minutes</a></li>
+        <li><a href="#" onclick="updateInterval(2)">last hour</a></li>
+        <li><a href="#" onclick="updateInterval(3)">last 24 hours</a></li>
+    </ul>
+</div>
+<div>
+    <h1>Netflow</h1>
+    <div id="#chart">
+        <svg width="1000" height="600"></svg>
+    </div>
 </div>
 
+<div>
+    <h1>Top N</h1>
+    TODO
+</div>
+
+
 <script>
+    var updateInterval = function(newInterval) {
+        if (newInterval === void 0 || newInterval === 0) {
+            render();
+        }
+        if (newInterval === 1) {
+            render({
+                "gte": "now-5m/m",
+                "lt": "now"
+                });
+        }
+        if (newInterval === 2) {
+            render({
+                "gte": "now-1h/h",
+                "lt": "now"
+            });
+        }
+        if (newInterval === 3) {
+            render({
+                "gte": "now-24h/h",
+                "lt": "now"
+            });
+        }
+    };
 
     var colors = {
         'environment':         '#edbd00',
@@ -62,149 +130,155 @@
         }
     }
 
-    var svg = d3.select("svg"),
-        width = +svg.attr("width"),
-        height = +svg.attr("height");
 
-    var formatNumber = d3.format(",.2f");
-    var format = function(d) {
-        var bytes = d * 8;
-        if (bytes < 1024) {
-            return bytes;
-        }
-        if (bytes < 1024 * 1024) {
-            return formatNumber(bytes / 1024) + " KB";
-        }
-        if (bytes < 1024 * 1024 * 1024) {
-            return formatNumber(bytes / 1024 / 1024) + " MB";
-        }
-        if (bytes < 1024 * 1024 * 1024) {
-            return formatNumber(bytes / 1024 / 1024 / 1024) + " GB";
-        }
-        return formatNumber(bytes / 1024 / 1024 / 1024 / 1024) + " TB";
-    };
+    render(0);
 
-    var sankey = d3.sankey()
-        .nodeWidth(16)
-        .nodePadding(8)
-        .extent([[1, 1], [width - 1, height - 100]]);
+    function render(interval) {
 
-    var link = svg.append("g")
-        .attr("class", "links")
-        .attr("fill", "none")
-        .attr("stroke", "#000")
-        .selectAll("path");
+        var svg = d3.select("svg"),
+            width = +svg.attr("width"),
+            height = +svg.attr("height");
 
-    var node = svg.append("g")
-        .attr("class", "nodes")
-        .attr("font-family", "sans-serif")
-        .attr("font-size", 10)
-        .selectAll("g");
+        svg.selectAll("g").remove();
 
+        var formatNumber = d3.format(",.2f");
+        var format = function(d) {
+            var bytes = d * 8;
+            if (bytes < 1024) {
+                return bytes;
+            }
+            if (bytes < 1024 * 1024) {
+                return formatNumber(bytes / 1024) + " KB";
+            }
+            if (bytes < 1024 * 1024 * 1024) {
+                return formatNumber(bytes / 1024 / 1024) + " MB";
+            }
+            if (bytes < 1024 * 1024 * 1024) {
+                return formatNumber(bytes / 1024 / 1024 / 1024) + " GB";
+            }
+            return formatNumber(bytes / 1024 / 1024 / 1024 / 1024) + " TB";
+        };
 
-    loadData()
-        .then(function(data) {
-            console.log("Building graph...");
+        var sankey = d3.sankey()
+            .nodeWidth(16)
+            .nodePadding(8)
+            .extent([[1, 1], [width - 1, height - 100]]);
 
-            var graph = {};
-            var nodes = [];
-            var links = [];
-            graph.nodes = nodes;
-            graph.links = links;
+        var link = svg.append("g")
+            .attr("class", "links")
+            .attr("fill", "none")
+            .attr("stroke", "#000")
+            .selectAll("path");
 
-            var createNode = function(data) {
-                var node = {
-                    address: data.address,
-                    raw: data
+        var node = svg.append("g")
+            .attr("class", "nodes")
+            .attr("font-family", "sans-serif")
+            .attr("font-size", 10)
+            .selectAll("g");
+
+        loadData(interval)
+            .then(function(data) {
+                console.log("Building graph...");
+
+                var graph = {};
+                var nodes = [];
+                var links = [];
+                graph.nodes = nodes;
+                graph.links = links;
+
+                var createNode = function(data) {
+                    var node = {
+                        address: data.address,
+                        raw: data
+                    };
+                    return node;
                 };
-                return node;
-            };
 
-            var findExistingNode = function(nodes, elementToFind) {
-                return nodes.find(function(node) {
-                    if (elementToFind.address === node.address) {
-                        return node;
-                    }
-                    return void 0;
-                });
-            };
+                var findExistingNode = function(nodes, elementToFind) {
+                    return nodes.find(function(node) {
+                        if (elementToFind.address === node.address) {
+                            return node;
+                        }
+                        return void 0;
+                    });
+                };
 
-            // Build nodes
-            Object.keys(data).forEach(function(key) {
-                var source = data[key];
-                var node = createNode(source);
-                nodes.push(node);
+                // Build nodes
+                Object.keys(data).forEach(function(key) {
+                    var source = data[key];
+                    var node = createNode(source);
+                    nodes.push(node);
 
-                // children
-                Object.keys(source.targets).forEach(function(targetKey) {
-                    var child = source.targets[targetKey];
-                    var childNode = findExistingNode(nodes, child);
-                    if (!childNode) {
-                        childNode = createNode(child);
-                        nodes.push(childNode);
-                    }
+                    // children
+                    Object.keys(source.targets).forEach(function(targetKey) {
+                        var child = source.targets[targetKey];
+                        var childNode = findExistingNode(nodes, child);
+                        if (!childNode) {
+                            childNode = createNode(child);
+                            nodes.push(childNode);
+                        }
 
-                    // Build links
-                    links.push({
-                        "source": nodes.indexOf(node),
-                        "target": nodes.indexOf(childNode),
-                        "value": child.sum,
+                        // Build links
+                        links.push({
+                            "source": nodes.indexOf(node),
+                            "target": nodes.indexOf(childNode),
+                            "value": child.sum,
+                        })
                     })
-                })
+                });
+                console.log("with nodes:");
+                console.log(nodes);
+                console.log("with links:");
+                console.log(links);
+
+                console.log("Graph:");
+                console.log(graph);
+
+                // Sankey it
+                sankey(graph);
+
+                link = link
+                    .data(graph.links)
+                    .enter().append("g")
+                    .attr("class", "link")
+                    .append("path")
+                    .attr("d", d3.sankeyLinkHorizontal())
+                    .attr("stroke", function(link) {return color(link.source, 4) || color(link.target, 1) || colors.fallback;})
+                    .attr("stroke-width", function(d) { return Math.max(1, d.width); });
+
+                link.append("title")
+                    .text(function(d) { return d.source.address + " → " + d.target.address + "\n" + format(d.value); });
+
+                node = node
+                    .data(graph.nodes)
+                    .enter().append("g")
+                    .attr("class", "node");
+
+                node.append("rect")
+                    .attr("x", function(d) { return d.x0; })
+                    .attr("y", function(d) { return d.y0; })
+                    .attr("height", function(d) { return d.y1 - d.y0; })
+                    .attr("width", function(d) { return d.x1 - d.x0; })
+                    .attr("fill", function(node) { return color(node, 1) || colors.fallback; })
+                    .attr("stroke", "#000");
+
+                node.append("text")
+                    .attr("x", function(d) { return d.x0 - 6; })
+                    .attr("y", function(d) { return (d.y1 + d.y0) / 2; })
+                    .attr("dy", "0.35em")
+                    .attr("text-anchor", "end")
+                    .text(function(d) { return label(d); })
+                    .filter(function(d) { return d.x0 < width / 2; })
+                    .attr("x", function(d) { return d.x1 + 6; })
+                    .attr("text-anchor", "start");
+
+                node.append("title")
+                    .text(function(d) { return d.address + "\n" + format(d.value); });
             });
-            console.log("with nodes:");
-            console.log(nodes);
-            console.log("with links:");
-            console.log(links);
-
-            console.log("Graph:");
-            console.log(graph);
-
-            // Sankey it
-            sankey(graph);
-
-            link = link
-                .data(graph.links)
-                .enter().append("g")
-                .attr("class", "link")
-                .append("path")
-                .attr("d", d3.sankeyLinkHorizontal())
-                .attr("stroke", function(link) {return color(link.source, 4) || color(link.target, 1) || colors.fallback;})
-                .attr("stroke-width", function(d) { return Math.max(1, d.width); });
-
-            link.append("title")
-                .text(function(d) { return d.source.address + " → " + d.target.address + "\n" + format(d.value); });
-
-            node = node
-                .data(graph.nodes)
-                .enter().append("g")
-                .attr("class", "node");
-
-            node.append("rect")
-                .attr("x", function(d) { return d.x0; })
-                .attr("y", function(d) { return d.y0; })
-                .attr("height", function(d) { return d.y1 - d.y0; })
-                .attr("width", function(d) { return d.x1 - d.x0; })
-                .attr("fill", function(node) { return color(node, 1) || colors.fallback; })
-                .attr("stroke", "#000");
-
-            node.append("text")
-                .attr("x", function(d) { return d.x0 - 6; })
-                .attr("y", function(d) { return (d.y1 + d.y0) / 2; })
-                .attr("dy", "0.35em")
-                .attr("text-anchor", "end")
-                .text(function(d) { return label(d); })
-            .filter(function(d) { return d.x0 < width / 2; })
-            .attr("x", function(d) { return d.x1 + 6; })
-            .attr("text-anchor", "start");
-
-            node.append("title")
-                .text(function(d) { return d.address + "\n" + format(d.value); });
-    });
-
+    }
 
     // Fetches data from elastic search
-    function loadData() {
+    function loadData(interval) {
         var client = new elasticsearch.Client({
             host: 'http://127.0.0.1:9200',
         });
@@ -218,31 +292,27 @@
             }
         });
 
-        return client.search({
-            index: 'opennms',
-            type: 'netflow',
-            body: {
-                "size" : 0,
-                "aggregations":{
-                    "sourceBandwidth":{
-                        "terms":{
-                            "field": "sourceAddress"
+        var searchBody =  {
+            "size" : 0,
+            "aggregations":{
+                "sourceBandwidth":{
+                    "terms":{
+                        "field": "sourceAddress"
+                    },
+                    "aggs":{
+                        "sum_octets": {
+                            "sum": {
+                                "field" : "octets"
+                            }
                         },
-                        "aggs":{
-                            "sum_octets": {
-                                "sum": {
-                                    "field" : "octets"
-                                }
+                        "targets": {
+                            "terms":{
+                                "field": "destAddress"
                             },
-                            "targets": {
-                                "terms":{
-                                    "field": "destAddress"
-                                },
-                                "aggs": {
-                                    "sum_octets": {
-                                        "sum": {
-                                            "field": "octets"
-                                        }
+                            "aggs": {
+                                "sum_octets": {
+                                    "sum": {
+                                        "field": "octets"
                                     }
                                 }
                             }
@@ -250,6 +320,25 @@
                     }
                 }
             }
+        };
+
+        if (interval) {
+            console.log("Interval defined:");
+            console.log(interval);
+            searchBody.query = {
+                "range": {
+                    "timestamp": interval
+                }
+            };
+        }
+
+        console.log("performing search");
+        console.log(searchBody);
+
+        return client.search({
+            index: 'opennms',
+            type: 'netflow',
+            body: searchBody
         })
         .then(function (body) {
             console.log("Data received:");
