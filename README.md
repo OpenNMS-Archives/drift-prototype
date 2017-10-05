@@ -24,9 +24,14 @@ e.g. with [Netflow-Generator](https://github.com/mshindo/NetFlow-Generator):
 
 `flowgen -w 1000 -n 1000 -f 1 --srcaddr 10.0.0.1:3 --dstaddr 20.0.0.1:10  --dstport 22-80 -p 8877 localhost`
 
-# Visualize it
+### Visualize it
 Visualize it with your web browser of choice (Internet Explorer is not a choice)
 http://localhost:8080/index4.html
+
+# Flow generation
+
+* Simulate data: [Netflow-Generator](https://github.com/mshindo/NetFlow-Generator)
+* Export Netflow data from existing interface: [Softflowd](https://github.com/davidediger/softflowd), [Ntop](http://ntop.org)
 
 
 ## Some Notes
@@ -47,6 +52,16 @@ http://localhost:8080/index4.html
  * v9 where to get Length N from, e.g. IN_BYTES (default=4)
  * v9 have a look at options templates and options data records and implement accordingly
  * if elasticsearch is used, what should be the index and type?
+    * [flowanalyzer](https://gitlab.com/thart/flowanalyzer) uses `sflow-YEAR-MONTH-DAY/Flow` (sflow), `flow-YEAR-MONTH-DAY/Flow` (netflow 5,9, ipfix) 
+    * [Logstash Code Plugin](https://github.com/logstash-plugins/logstash-codec-netflow) uses `logstash-YEAR.MONTH.DAY/logs`
+    
+ ## Existing Flow Analyzer Tools
+ An uncomplete, unevaluated list of existing flow analyzer tools, for samples, implementation details, documentation, etc:
+ See also libraries (below).
+ 
+  * [flowanalyzer](https://gitlab.com/thart/flowanalyzer)
+  * [Logstash Codec Plugin](https://github.com/logstash-plugins/logstash-codec-netflow)
+    * [[Net | s]flow Samples](https://github.com/logstash-plugins/logstash-codec-netflow/tree/master/spec/codecs)
  
  ## Libaries (Java)
  
