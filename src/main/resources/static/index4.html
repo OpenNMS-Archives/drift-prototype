@@ -143,59 +143,33 @@
             .then(function(data) {
                 console.log("Building graph...");
 
+                var findNodesIndex = function(nodes, address) {
+                    for (var i=0; i<nodes.length; i++) {
+                        if (nodes[i].address === address) {
+                            return i;
+                        }
+                    }
+                    throw new Error("No node with address" + address + " found");
+                };
+
+                // sankey model
                 var graph = {};
-                var nodes = [];
-                var links = [];
-                graph.nodes = nodes;
-                graph.links = links;
-
-                var createNode = function(data) {
-                    var node = {
-                        address: data.address,
-                        raw: data
-                    };
-                    return node;
-                };
-
-                var findExistingNode = function(nodes, elementToFind) {
-                    return nodes.find(function(node) {
-                        if (elementToFind.address === node.address) {
-                            return node;
-                        }
-                        return void 0;
-                    });
-                };
-
-                // Build nodes
-                Object.keys(data).forEach(function(key) {
-                    var source = data[key];
-                    var node = createNode(source);
-                    nodes.push(node);
-
-                    // children
-                    Object.keys(source.targets).forEach(function(targetKey) {
-                        var child = source.targets[targetKey];
-                        var childNode = findExistingNode(nodes, child);
-                        if (!childNode) {
-                            childNode = createNode(child);
-                            nodes.push(childNode);
-                        }
-
-                        // Build links
-                        links.push({
-                            "source": nodes.indexOf(node),
-                            "target": nodes.indexOf(childNode),
-                            "value": child.sum,
-                        })
-                    })
+                graph.nodes = Object.keys(data.nodes).map(function(key) {
+                    return {"address": key, "raw": data.nodes[key]}
                 });
-                console.log("with nodes:");
-                console.log(nodes);
-                console.log("with links:");
-                console.log(links);
-
-                console.log("Graph:");
-                console.log(graph);
+                graph.links = [];
+                Object.keys(data.links).forEach(function(key) {
+                    var source = key;
+                    var links = data.links[key].targets.map(function(value, index) {
+                        return {
+                            source: findNodesIndex(graph.nodes, source),
+                            target: findNodesIndex(graph.nodes, value),
+                            value: data.links[key].values[index]
+                        };
+                    });
+                    graph.links = graph.links.concat(links);
+                });
+                console.log("Graph:", graph);
 
                 // Sankey it
                 sankey(graph);
@@ -258,26 +232,41 @@
         var searchBody =  {
             "size" : 0,
             "aggregations":{
-                "sourceBandwidth":{
+                "bandwidth":{
                     "terms":{
-                        "field": "sourceAddress"
+                        "field": "sourceAddress",
+                        "order": { "_term": "asc"}
                     },
                     "aggs":{
-                        "sum_octets": {
-                            "sum": {
-                                "field" : "octets"
-                            }
-                        },
                         "targets": {
                             "terms":{
-                                "field": "destAddress"
+                                "field": "exportAddress",
+                                "order": { "_term": "asc"}
                             },
                             "aggs": {
+                                "targets": {
+                                    "terms": {
+                                        "field": "destAddress",
+                                        "order": { "_term": "asc"}
+                                    },
+                                    "aggs": {
+                                        "sum_octets": {
+                                            "sum": {
+                                                "field": "octets"
+                                            }
+                                        }
+                                    }
+                                },
                                 "sum_octets": {
                                     "sum": {
                                         "field": "octets"
                                     }
                                 }
+                            }
+                        },
+                        "sum_octets": {
+                            "sum": {
+                                "field": "octets"
                             }
                         }
                     }
@@ -286,8 +275,7 @@
         };
 
         if (interval) {
-            console.log("Interval defined:");
-            console.log(interval);
+            console.log("Interval defined:", interval);
             searchBody.query = {
                 "range": {
                     "timestamp": interval
@@ -295,8 +283,7 @@
             };
         }
 
-        console.log("performing search");
-        console.log(searchBody);
+        console.log("performing search", searchBody);
 
         return client.search({
             index: 'opennms',
@@ -304,33 +291,58 @@
             body: searchBody
         })
         .then(function (body) {
-            console.log("Data received:");
-            console.log(body);
+            console.log("Data received:", body);
 
             // convert
-            var sourceBandwidth = body.aggregations.sourceBandwidth.buckets;
-            var data = {};
+            var sourceBandwidth = body.aggregations.bandwidth.buckets;
+            var nodes = {};
+            var links = {};
 
-            // TODO merge correctly, at the moment source and target addresses should never be the same
-            sourceBandwidth.forEach(function(d) {
-                data[d.key] = {};
-                data[d.key] = {
-                    "address": d.key,
-                    "sum": d.sum_octets.value, // incoming traffic
-                    "targets": {}
-                };
+            var addNodes = function(nodes, targets) {
+                targets.forEach(function(target) {
+                    if (nodes[target.key] === undefined) {
+                        nodes[target.key] = target
+                    }
+                    // process children
+                    if (target.targets && target.targets.buckets) {
+                        addNodes(nodes, target.targets.buckets);
+                    }
+                });
+            };
 
-                d.targets.buckets.forEach(function(b) {
-                    data[d.key].targets[b.key] = {
-                        "address": b.key,
-                        "sum": b.sum_octets.value, // outgoing traffic
+            var addLinks = function(links, sources) {
+                sources.forEach(function(source) {
+                    if (source.targets && source.targets.buckets) {
+                        source.targets.buckets.forEach(function(target) {
+                            if (links[source.key] === undefined) {
+                                links[source.key] = {
+                                    source: source.key,
+                                    targets: [target.key],
+                                    values: [target.sum_octets.value]
+                                };
+                            } else { // a link is already existing
+                                // if the target already exist, merge them
+                                var index = links[source.key].targets.indexOf(target.key);
+                                if (index >= 0) {
+                                    links[source.key].values[index] += target.sum_octets.value;
+                                } else { // target does not exist, add
+                                    links[source.key].targets.push(target.key);
+                                    links[source.key].values.push(target.sum_octets.value);
+                                }
+                            }
+                        });
+                        // process children
+                        addLinks(links, source.targets.buckets);
                     }
                 });
 
-            });
+            };
 
-            console.log("Data simplified:");
-            console.log(data);
+            addNodes(nodes, sourceBandwidth);
+            addLinks(links, sourceBandwidth);
+
+            var data = {"nodes": nodes, "links": links};
+            console.log("Data simplified:", data);
             return data;
         }, function (error) {
             console.trace(error.message);
