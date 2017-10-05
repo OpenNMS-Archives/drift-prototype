@@ -89,6 +89,8 @@ public class NetflowListener {
     }
 
     private FlowDefinition getDefinition() {
+        // TODO Verify if types are correct. Per definition all number fields are unsigned, where in java they are signed.
+        // 4 bytes => 32 bit unsigned. Integer is signed. Therefore all Integers should probably be Long. In addition the types in general are not correct
         final List<Field> header = new ArrayList<>();
         header.add(new Field("version", 2,  Integer.class,"NetFlow export format version number"));
         header.add(new Field("count", 2, Integer.class, "Number of flows exported in this packet (1-30)"));
