@@ -44,16 +44,36 @@ public class NetflowConverter {
         int i=1;
         for (FlowBody body : flowPackage.getBodies()) {
             final NetflowDocument document = new NetflowDocument();
-            document.setCount(flowPackage.getHeader().getValue("count"));
-            document.setVersion(flowPackage.getHeader().getValue("version"));
+            // Header
             document.setProtocol("netflow");
             document.setFlowId(i);
-            document.setOctets(body.getValue("dOctets"));
+            document.setVersion(flowPackage.getHeader().getValue("version"));
+            document.setCount(flowPackage.getHeader().getValue("count"));
+            document.setSysUptime(flowPackage.getHeader().getValue("SysUptime"));
             document.setTimestamp(new Date(((Integer) flowPackage.getHeader().getValue("unix_secs")) * 1000L));
+            document.setFlowSequence(flowPackage.getHeader().getValue("flow_sequence"));
+            document.setEngineType(flowPackage.getHeader().getValue("engine_type"));
+            document.setEngineId(flowPackage.getHeader().getValue("engine_id"));
+
+            // Body
             document.setSourceAddress(((InetAddress)body.getValue("srcaddr")).toString());
             document.setSourcePort(body.getValue("srcport"));
             document.setDestAddress(((InetAddress)body.getValue("dstaddr")).toString());
             document.setDestPort(body.getValue("dstport"));
+            document.setNextHopAddress(((InetAddress) body.getValue("nexthop")).toString());
+            document.setInput(body.getValue("input"));
+            document.setOutput(body.getValue("output"));
+            document.setOctets(body.getValue("dOctets"));
+            document.setPackages(body.getValue("dPkts"));
+            document.setFirst(body.getValue("First"));
+            document.setLast(body.getValue("Last"));
+            document.setTcpFlags(body.getValue("tcp_flags"));
+            document.setProtocolType(body.getValue("prot"));
+            document.setTypeOfService(body.getValue("tos"));
+            document.setSourceAs(body.getValue("src_as"));
+            document.setDestAs(body.getValue("dst_as"));
+            document.setSourceMask(body.getValue("src_mask"));
+            document.setDestMask(body.getValue("src_mask"));
             documents.add(document);
             i++;
         }

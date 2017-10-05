@@ -42,33 +42,40 @@ public class NetflowDocument {
 
     @Id
     private String id;
-
     private int version;
-
     private int flowId;
-
     private int count;
-
     @Field(type = FieldType.text, fielddata = true)
     private String protocol;
-
     private int octets;
-
     @Field(type = FieldType.text, fielddata = true)
     private String exportAddress;
-
     @JsonFormat (shape = JsonFormat.Shape.STRING, pattern ="yyyy-MM-dd'T'HH:mm:ss.SSSZZ")
     private Date timestamp;
-
     @Field(type = FieldType.text, fielddata = true)
     private String destAddress;
-
     private int sourcePort;
-
     @Field(type = FieldType.text, fielddata = true)
     private String sourceAddress;
-
     private int destPort;
+    private int sysUptime;
+    private int flowSequence;
+    private int engineType;
+    private int engineId;
+    @Field(type = FieldType.text, fielddata = true)
+    private String nextHopAddress;
+    private int input;
+    private int output;
+    private int packages;
+    private int first;
+    private int last;
+    private int tcpFlags;
+    private int protocolType;
+    private int typeOfService;
+    private int sourceAs;
+    private int destAs;
+    private int sourceMask;
+    private int destMask;
 
     public String getId() {
         return id;
@@ -164,5 +171,141 @@ public class NetflowDocument {
 
     public void setExportAddress(String exportAddress) {
         this.exportAddress = exportAddress;
+    }
+
+    public void setSysUptime(int sysUptime) {
+        this.sysUptime = sysUptime;
+    }
+
+    public int getSysUptime() {
+        return sysUptime;
+    }
+
+    public int getFlowSequence() {
+        return flowSequence;
+    }
+
+    public void setFlowSequence(int flowSequence) {
+        this.flowSequence = flowSequence;
+    }
+
+    public int getEngineType() {
+        return engineType;
+    }
+
+    public void setEngineType(int engineType) {
+        this.engineType = engineType;
+    }
+
+    public int getEngineId() {
+        return engineId;
+    }
+
+    public void setEngineId(int engineId) {
+        this.engineId = engineId;
+    }
+
+    public void setNextHopAddress(String nextHopAddress) {
+        this.nextHopAddress = nextHopAddress;
+    }
+
+    public String getNextHopAddress() {
+        return nextHopAddress;
+    }
+
+    public int getInput() {
+        return input;
+    }
+
+    public void setInput(int input) {
+        this.input = input;
+    }
+
+    public int getOutput() {
+        return output;
+    }
+
+    public void setOutput(int output) {
+        this.output = output;
+    }
+
+    public int getPackages() {
+        return packages;
+    }
+
+    public void setPackages(int packages) {
+        this.packages = packages;
+    }
+
+    public int getFirst() {
+        return first;
+    }
+
+    public void setFirst(int first) {
+        this.first = first;
+    }
+
+    public int getLast() {
+        return last;
+    }
+
+    public void setLast(int last) {
+        this.last = last;
+    }
+
+    public int getTcpFlags() {
+        return tcpFlags;
+    }
+
+    public void setTcpFlags(int tcpFlags) {
+        this.tcpFlags = tcpFlags;
+    }
+
+    public int getProtocolType() {
+        return protocolType;
+    }
+
+    public void setProtocolType(int protocolType) {
+        this.protocolType = protocolType;
+    }
+
+    public int getTypeOfService() {
+        return typeOfService;
+    }
+
+    public void setTypeOfService(int typeOfService) {
+        this.typeOfService = typeOfService;
+    }
+
+    public int getSourceAs() {
+        return sourceAs;
+    }
+
+    public void setSourceAs(int sourceAs) {
+        this.sourceAs = sourceAs;
+    }
+
+    public int getDestAs() {
+        return destAs;
+    }
+
+    public void setDestAs(int destAs) {
+        this.destAs = destAs;
+    }
+
+    public int getSourceMask() {
+        return sourceMask;
+    }
+
+    public void setSourceMask(int sourceMask) {
+        this.sourceMask = sourceMask;
+    }
+
+    public int getDestMask() {
+        return destMask;
+    }
+
+    public void setDestMask(int destMask) {
+        this.destMask = destMask;
     }
 }
