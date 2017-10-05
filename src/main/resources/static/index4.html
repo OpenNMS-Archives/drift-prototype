@@ -37,7 +37,7 @@
 <body>
 <div>
     <h1>Interval</h1>
-    <select onchange="updateInterval(this.value)">
+    <select id="interval" onchange="updateInterval(this.value)">
         <option value="0">all Time</option>
         <option value="1">last 5 Minutes</option>
         <option value="2">last Hour</option>
@@ -62,6 +62,7 @@
         if (typeof newInterval ==='string') {
             newInterval = parseInt(newInterval);
         }
+        document.getElementById('interval').value = newInterval;
         if (newInterval === void 0 || newInterval === 0) {
             render();
         }
