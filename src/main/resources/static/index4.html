@@ -46,16 +46,21 @@
 </div>
 <div>
     <h1>Netflow</h1>
-    <div id="#chart">
+    <div class="chart">
         <svg width="1000" height="600"></svg>
     </div>
 </div>
 
 <div>
-    <h1>Top N</h1>
-    TODO
+    <h1>Top N Source Bandwidth</h1>
+    <div id="sourceBandwidth">
+    </div>
 </div>
-
+<div>
+    <h1>Top N Target Bandwidth</h1>
+    <div id="targetBandwidth">
+    </div>
+</div>
 
 <script>
     var updateInterval = function(newInterval) {
@@ -99,12 +104,6 @@
     updateInterval(3);
 
     function render(interval) {
-        var svg = d3.select("svg"),
-            width = +svg.attr("width"),
-            height = +svg.attr("height");
-
-        svg.selectAll("g").remove();
-
         var formatNumber = d3.format(",.2f");
         var format = function(d) {
             var bytes = d * 8;
@@ -123,25 +122,16 @@
             return formatNumber(bytes / 1024 / 1024 / 1024 / 1024) + " TB";
         };
 
-        var sankey = d3.sankey()
-            .nodeWidth(16)
-            .nodePadding(8)
-            .extent([[1, 1], [width - 1, height - 100]]);
+        loadReportData(interval);
 
-        var link = svg.append("g")
-            .attr("class", "links")
-            .attr("fill", "none")
-            .attr("stroke", "#000")
-            .selectAll("path");
-
-        var node = svg.append("g")
-            .attr("class", "nodes")
-            .attr("font-family", "sans-serif")
-            .attr("font-size", 10)
-            .selectAll("g");
-
-        loadData(interval)
+        loadFlowDataForGraph(interval)
             .then(function(data) {
+                var width = 1000;
+                var height = 600;
+                var sankey = d3.sankey()
+                    .nodeWidth(16)
+                    .nodePadding(8)
+                    .extent([[1, 1], [width - 1, height - 100]]);
                 console.log("Building graph...");
 
                 var findNodesIndex = function(nodes, address) {
@@ -172,8 +162,32 @@
                 });
                 console.log("Graph:", graph);
 
-                // Sankey it
+                // clear graph
+                d3.select(".chart").selectAll("*").remove();
+
+                // show "no data" when no data
+                if (graph.nodes.length === 0 || graph.links.length === 0) {
+                    d3.select(".chart").append("div").text("No data available");
+                    return;
+                }
+
+                // Sankey graph
                 sankey(graph);
+
+                // Build graph
+                var svg = d3.select(".chart").append("svg").attr("width", width).attr("height", height);
+
+                var link = svg.append("g")
+                    .attr("class", "links")
+                    .attr("fill", "none")
+                    .attr("stroke", "#000")
+                    .selectAll("path");
+
+                var node = svg.append("g")
+                    .attr("class", "nodes")
+                    .attr("font-family", "sans-serif")
+                    .attr("font-size", 10)
+                    .selectAll("g");
 
                 link = link
                     .data(graph.links)
@@ -215,21 +229,7 @@
             });
     }
 
-    // Fetches data from elastic search
-    function loadData(interval) {
-        var client = new elasticsearch.Client({
-            host: 'http://127.0.0.1:9200',
-        });
-        client.ping({
-            requestTimeout: 30000,
-        }, function (error) {
-            if (error) {
-                console.error('elasticsearch cluster is down!');
-            } else {
-                console.log('All is well');
-            }
-        });
-
+    function loadFlowDataForGraph(interval) {
         var searchBody =  {
             "size" : 0,
             "aggregations":{
@@ -274,26 +274,7 @@
                 }
             }
         };
-
-        if (interval) {
-            console.log("Interval defined:", interval);
-            searchBody.query = {
-                "range": {
-                    "timestamp": interval
-                }
-            };
-        }
-
-        console.log("performing search", searchBody);
-
-        return client.search({
-            index: 'opennms',
-            type: 'netflow',
-            body: searchBody
-        })
-        .then(function (body) {
-            console.log("Data received:", body);
-
+        return elasticQuery(interval, searchBody).then(function(body) {
             // convert
             var sourceBandwidth = body.aggregations.bandwidth.buckets;
             var nodes = {};
@@ -345,6 +326,131 @@
             var data = {"nodes": nodes, "links": links};
             console.log("Data simplified:", data);
             return data;
+        });
+    }
+
+    function loadReportData(interval) {
+        elasticQuery(interval, {
+            "size" : 0,
+            "aggregations":{
+                "sourceBandwidth":{
+                    "terms": {
+                        "field": "sourceAddress"
+                    },
+                    "aggs": {
+                        "sum_octets": {
+                            "sum": {
+                                "field": "octets"
+                            }
+                        }
+                    }
+                },
+                "targetBandwidth":{
+                    "terms": {
+                        "field": "destAddress"
+                    },
+                    "aggs": {
+                        "sum_octets": {
+                            "sum": {
+                                "field": "octets"
+                            }
+                        }
+                    }
+                }
+            }
+        }).then(function(body) {
+            function renderTable(data, columns, divSelector) {
+                // Handle no data
+                d3.select(divSelector).selectAll("*").remove();
+                if (data === void 0 || data.length === 0) {
+                    d3.select(divSelector).append("div").text("No Data Available");
+                    return;
+                }
+
+                // Create table, thead and tbody
+                var table = d3.select(divSelector).append("table");
+                var thead = table.append("thead");
+                var tbody = table.append("tbody");
+
+                // Fill header
+                thead.append("tr")
+                    .selectAll("th")
+                    .data(columns).enter()
+                    .append("th").text(function(column) {
+                        return column;
+                    });
+
+                // Fill rows
+                var rows = tbody.selectAll("tr")
+                    .data(data).enter()
+                    .append("tr")
+                        .selectAll("td")
+                        .data(function(row) {
+                            return [row.ip, row.flows, row.bytes]
+                        })
+                        .enter()
+                            .append("td")
+                                .text(function(d) {
+                                    return d;
+                                });
+            }
+
+            function simplyfy(buckets) {
+                // ip, flows, octets * 8
+                var data = buckets.map(function(b) {
+                    return {"ip": b.key, "flows": b.doc_count, "bytes": b.sum_octets.value * 8};
+                });
+                return data.sort(function(a,b) {
+                    return -a.flows + b.flows;
+                })
+            }
+
+            var sourceBandwith = simplyfy(body.aggregations.sourceBandwidth.buckets);
+            var targetBandwith = simplyfy(body.aggregations.targetBandwidth.buckets);
+
+            renderTable(sourceBandwith, ["Source IP", "Flows", "Bytes"], "#sourceBandwidth" );
+            renderTable(targetBandwith, ["Dest. IP", "Flows", "Bytes"], "#targetBandwidth" );
+
+        });
+    }
+
+    // Fetches data from elastic search
+    function elasticQuery(interval, searchBody) {
+        if (searchBody === void 0) {
+            throw new Error("No SearchBody defined");
+        }
+        var client = new elasticsearch.Client({
+            host: 'http://127.0.0.1:9200',
+        });
+        client.ping({
+            requestTimeout: 30000,
+        }, function (error) {
+            if (error) {
+                console.error('elasticsearch cluster is down!');
+            } else {
+                console.log('All is well');
+            }
+        });
+
+        if (interval) {
+            console.log("Interval defined:", interval);
+            searchBody.query = {
+                "range": {
+                    "timestamp": interval
+                }
+            };
+        }
+
+        console.log("performing search", searchBody);
+
+        return client.search({
+            index: 'opennms',
+            type: 'netflow',
+            body: searchBody
+        })
+        .then(function (body) {
+            console.log("Data received:", body);
+            return body;
         }, function (error) {
             console.trace(error.message);
         });
