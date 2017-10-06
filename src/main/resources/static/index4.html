@@ -211,26 +211,23 @@
         return colors[0];
     }
 
-    updateInterval(INTERVALS.LAST_24_HOURS);
-
-    function render(interval) {
-        var formatNumber = d3.format(",.2f");
-        var format = function(d) {
-            var bytes = d * 8;
-            if (bytes < 1024) {
-                return bytes;
-            }
-            if (bytes < 1024 * 1024) {
-                return formatNumber(bytes / 1024) + " KB";
-            }
-            if (bytes < 1024 * 1024 * 1024) {
-                return formatNumber(bytes / 1024 / 1024) + " MB";
-            }
-            if (bytes < 1024 * 1024 * 1024 * 1024) {
-                return formatNumber(bytes / 1024 / 1024 / 1024) + " GB";
-            }
-            return formatNumber(bytes / 1024 / 1024 / 1024 / 1024) + " TB";
-        };
+    var formatNumber = d3.format(",.2f");
+    var format = function format(d) {
+        var bytes = d * 8;
+        if (bytes < 1024) {
+            return bytes;
+        }
+        if (bytes < 1024 * 1024) {
+            return formatNumber(bytes / 1024) + " KB";
+        }
+        if (bytes < 1024 * 1024 * 1024) {
+            return formatNumber(bytes / 1024 / 1024) + " MB";
+        }
+        if (bytes < 1024 * 1024 * 1024 * 1024) {
+            return formatNumber(bytes / 1024 / 1024 / 1024) + " GB";
+        }
+        return formatNumber(bytes / 1024 / 1024 / 1024 / 1024) + " TB";
+    };
 
     updateInterval(INTERVALS.LAST_24_HOURS, portsFilter);
 
