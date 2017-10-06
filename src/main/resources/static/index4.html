@@ -38,10 +38,6 @@
 <div>
     <h1>Interval</h1>
     <select id="interval" onchange="updateInterval(this.value)">
-        <option value="0">all Time</option>
-        <option value="1">last 5 Minutes</option>
-        <option value="2">last Hour</option>
-        <option value="3" selected>last 24 Hours</option>
     </select>
 </div>
 <div>
@@ -63,32 +59,52 @@
 </div>
 
 <script>
+    const INTERVALS = {
+        "ALL_TIME" : {
+            "description" : "All time",
+            "query": undefined
+        },
+        "LAST_1_MINUTE": {
+            "description": "Last Minute",
+            "query": { "gte": "now-1m/m", "lt": "now"}
+        },
+        "LAST_5_MINUTES" : {
+          "description": "Last 5 Minutes",
+          "query": { "gte": "now-5m/m", "lt": "now"}
+        },
+        "LAST_30_MINUTES":{
+            "description": "Last 30 Minutes",
+            "query": {"gte": "now-30m/m", "lt": "now"}
+        },
+        "LAST_1_HOUR": {
+            "description": "Last Hour",
+            "query":  {"gte": "now-1h/h", "lt": "now"}
+        },
+        "LAST_24_HOURS": {
+            "description": "Last 24 Hours",
+            "query":  {"gte": "now-24h/h", "lt": "now"}
+        }
+
+    };
+
+    // Build interval select
+    var intervalElement = document.getElementById("interval");
+    Object.keys(INTERVALS).forEach(function(key) {
+        var opt = document.createElement('option');
+        opt.value = key;
+        opt.innerHTML = INTERVALS[key].description;
+        intervalElement.appendChild(opt);
+    });
+
+
     var updateInterval = function(newInterval) {
-        if (typeof newInterval ==='string') {
-            newInterval = parseInt(newInterval);
+        var interval = INTERVALS[newInterval];
+        if (interval === undefined) {
+            newInterval = "LAST_24_HOURS";
+            interval = INTERVALS.LAST_24_HOURS;
         }
         document.getElementById('interval').value = newInterval;
-        if (newInterval === void 0 || newInterval === 0) {
-            render();
-        }
-        if (newInterval === 1) {
-            render({
-                "gte": "now-5m/m",
-                "lt": "now"
-                });
-        }
-        if (newInterval === 2) {
-            render({
-                "gte": "now-1h/h",
-                "lt": "now"
-            });
-        }
-        if (newInterval === 3) {
-            render({
-                "gte": "now-24h/h",
-                "lt": "now"
-            });
-        }
+        render(interval.query);
     };
 
     var colors = {
@@ -101,7 +117,7 @@
         return colors[0];
     }
 
-    updateInterval(3);
+    updateInterval(INTERVALS.LAST_24_HOURS);
 
     function render(interval) {
         var formatNumber = d3.format(",.2f");
@@ -226,6 +242,8 @@
 
                 node.append("title")
                     .text(function(d) { return d.address + "\n" + format(d.value); });
+
+                console.log("Graph rendered...");
             });
     }
 
