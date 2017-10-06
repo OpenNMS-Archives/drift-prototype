@@ -139,7 +139,7 @@
                 }
             }
         };
-        elasticQuery(interval, query)
+        elasticQuery(query, interval)
             .then(function(body) {
                 // Ensure it exists
                 if (body.aggregations === undefined) {
@@ -390,10 +390,7 @@
             }
         };
 
-        // apply port restriction
-        applyPortsRestriction(searchBody, portsFilter);
-
-        return elasticQuery(interval, searchBody).then(function(body) {
+        return elasticQuery(searchBody, interval, portsFilter).then(function(body) {
             // ensure it is defined
             if (body === undefined || body.aggregations === undefined) {
                 body = {
@@ -488,9 +485,7 @@
             }
         };
 
-        applyPortsRestriction(searchBody, portsFilter);
-
-        elasticQuery(interval, searchBody).then(function(body) {
+        elasticQuery(searchBody, interval, portsFilter).then(function(body) {
             function renderTable(data, columns, divSelector) {
                 // Handle no data
                 d3.select(divSelector).selectAll("*").remove();
@@ -557,7 +552,7 @@
     }
 
     // Fetches data from elastic search
-    function elasticQuery(interval, searchBody) {
+    function elasticQuery(searchBody, interval, portsFilter) {
         if (searchBody === void 0) {
             throw new Error("No SearchBody defined");
         }
@@ -574,20 +569,10 @@
             }
         });
 
-//        if (interval) {
-//            console.log("Interval defined:", interval);
-//            if (!searchBody.query) {
-//                searchBody.query = {
-//                    "range": {
-//                        "timestamp": interval
-//                    }
-//                };
-//            } else {
-//                searchBody.query.range = {"timestamp": interval };
-//            }
-//        }
+        applyQueryRestrictions(searchBody, interval, portsFilter);
 
-        console.log("performing search", searchBody);
+//        console.debug("performing search", JSON.stringify(searchBody, null, 2));
+        console.debug("performing search", searchBody);
 
         return client.search({
             index: 'opennms',
@@ -603,18 +588,40 @@
         });
     }
 
-    function applyPortsRestriction(search, portsFilter) {
-        if (portsFilter && portsFilter.length > 0) {
-            var portArray = portsFilter.map(function (port) {
-                return {
-                    "match": {"destPort": port }
-                }
-            });
-            search.query = {
+    function applyQueryRestrictions(searchBody, interval, portsFilter) {
+        // ensure must and should are present
+        if (!searchBody.query) {
+            searchBody.query = {
                 "bool": {
-                    "should": portArray
+                    "filter": {
+                        "bool": {
+                            "must": []
+                        }
+                    }
                 }
             };
+        }
+
+        // add time range
+        if (interval) {
+            console.debug("Interval defined:", interval);
+            searchBody.query.bool.filter.bool.must.push({
+                "range": {"timestamp": interval}
+            });
+        }
+
+        // add ports filter
+        if (portsFilter && portsFilter.length > 0) {
+            console.debug("PortsFilter defined:", portsFilter);
+            searchBody.query.bool.filter.bool.must.push({
+                "constant_score": {
+                    "filter": {
+                        "terms": {
+                            "destPort": portsFilter
+                        }
+                    }
+                }
+            });
         }
     }
 
