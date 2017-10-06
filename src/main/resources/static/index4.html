@@ -32,15 +32,27 @@
             stroke-opacity: .5;
         }
 
+        .port-label {
+            padding-right: 20px;
+        }
+
     </style>
 </head>
 <body>
 <div>
-    <h1>Interval</h1>
-    <select id="interval" onchange="updateInterval(this.value)">
-    </select>
+    <div style="float:left; overflow: hidden; padding-right: 20px">
+        <h1>Interval</h1>
+        <select id="interval" onchange="updateInterval(this.value)">
+        </select>
+    </div>
+    <div style="overflow: hidden">
+        <h1>Services</h1>
+        <div id="port-container">
+
+        </div>
+    </div>
 </div>
-<div>
+<div style="clear:left">
     <h1>Netflow</h1>
     <div class="chart">
         <svg width="1000" height="600"></svg>
@@ -96,6 +108,7 @@
         intervalElement.appendChild(opt);
     });
 
+    var portsFilter = [];
 
     var updateInterval = function(newInterval) {
         var interval = INTERVALS[newInterval];
@@ -104,7 +117,88 @@
             interval = INTERVALS.LAST_24_HOURS;
         }
         document.getElementById('interval').value = newInterval;
-        render(interval.query);
+        render(interval.query, portsFilter);
+    };
+
+    var applicationMapping = {
+        443: "https",
+        80: "http",
+        53: "dns",
+        5353: "mdns",
+        67: "bootps",
+        123: "ntp",
+        138: "netbios-dgm",
+    };
+
+    var loadDestinationPorts = function(interval) {
+        var query = {
+            "size": 0,
+            "aggregations": {
+                "ports": {
+                    "terms": {"field": "destPort"}
+                }
+            }
+        };
+        elasticQuery(interval, query)
+            .then(function(body) {
+                // Ensure it exists
+                if (body.aggregations === undefined) {
+                    body = {
+                        aggregations: {
+                            ports : { buckets : [] }
+                        }
+                    }
+                }
+
+                // remove existing ports
+                d3.select("#port-container").selectAll("*").remove();
+
+                // Fill services/ports
+                var ports = body.aggregations.ports.buckets;
+
+                // no data
+                if (ports.length == 0) {
+                    d3.select("#port-container").append("div").text("No data available");
+                }
+
+                // now fill
+                ports.forEach(function(port, i) {
+                    var portContainer = document.getElementById("port-container");
+                    var checkbox = document.createElement("input");
+                    checkbox.type = "checkbox";
+                    checkbox.name = "port";
+                    checkbox.value = port.key;
+                    checkbox.id = "port-" + port.key;
+                    checkbox.onclick = function(event) {
+                        var value = event.target.value;
+                        var checked = event.target.checked;
+                        if (checked) {
+                            portsFilter.push(value);
+                        } else {
+                            portsFilter.splice(portsFilter.indexOf(value), 1);
+                        }
+                        render(interval, portsFilter);
+                    };
+                    checkbox.checked = portsFilter.indexOf(checkbox.value) >= 0;
+                    console.log("checked:", checkbox.checked, "index", portsFilter.indexOf(checkbox.value));
+
+                    var label = document.createElement('label');
+                    label.htmlFor = checkbox.id;
+                    label.className = "port-label";
+
+                    if (applicationMapping[port.key]) {
+                        label.appendChild(document.createTextNode(applicationMapping[port.key] + " (" + port.doc_count + "x)"));
+                    } else {
+                        label.appendChild(document.createTextNode("Unknown, Port " + port.key + " (" + port.doc_count + "x)"));
+                    }
+
+                    portContainer.appendChild(checkbox);
+                    portContainer.appendChild(label);
+                    if ( (i+1) % 3 == 0 && i > 0) {
+                        portContainer.appendChild(document.createElement("br"));
+                    }
+                })
+            });
     };
 
     var colors = {
@@ -138,9 +232,15 @@
             return formatNumber(bytes / 1024 / 1024 / 1024 / 1024) + " TB";
         };
 
-        loadReportData(interval);
+    updateInterval(INTERVALS.LAST_24_HOURS, portsFilter);
 
-        loadFlowDataForGraph(interval)
+    function render(interval, portsFilter) {
+
+        loadDestinationPorts(interval);
+
+        loadReportData(interval, portsFilter);
+
+        loadFlowDataForGraph(interval, portsFilter)
             .then(function(data) {
                 var width = 1000;
                 var height = 600;
@@ -247,7 +347,7 @@
             });
     }
 
-    function loadFlowDataForGraph(interval) {
+    function loadFlowDataForGraph(interval, portsFilter) {
         var searchBody =  {
             "size" : 0,
             "aggregations":{
@@ -292,6 +392,10 @@
                 }
             }
         };
+
+        // apply port restriction
+        applyPortsRestriction(searchBody, portsFilter);
+
         return elasticQuery(interval, searchBody).then(function(body) {
             // ensure it is defined
             if (body === undefined || body.aggregations === undefined) {
@@ -356,8 +460,8 @@
         });
     }
 
-    function loadReportData(interval) {
-        elasticQuery(interval, {
+    function loadReportData(interval, portsFilter) {
+        var searchBody = {
             "size" : 0,
             "aggregations":{
                 "sourceBandwidth":{
@@ -385,7 +489,11 @@
                     }
                 }
             }
-        }).then(function(body) {
+        };
+
+        applyPortsRestriction(searchBody, portsFilter);
+
+        elasticQuery(interval, searchBody).then(function(body) {
             function renderTable(data, columns, divSelector) {
                 // Handle no data
                 d3.select(divSelector).selectAll("*").remove();
@@ -469,14 +577,18 @@
             }
         });
 
-        if (interval) {
-            console.log("Interval defined:", interval);
-            searchBody.query = {
-                "range": {
-                    "timestamp": interval
-                }
-            };
-        }
+//        if (interval) {
+//            console.log("Interval defined:", interval);
+//            if (!searchBody.query) {
+//                searchBody.query = {
+//                    "range": {
+//                        "timestamp": interval
+//                    }
+//                };
+//            } else {
+//                searchBody.query.range = {"timestamp": interval };
+//            }
+//        }
 
         console.log("performing search", searchBody);
 
@@ -492,6 +604,21 @@
             console.error(error);
             return {};
         });
+    }
+
+    function applyPortsRestriction(search, portsFilter) {
+        if (portsFilter && portsFilter.length > 0) {
+            var portArray = portsFilter.map(function (port) {
+                return {
+                    "match": {"destPort": port }
+                }
+            });
+            search.query = {
+                "bool": {
+                    "should": portArray
+                }
+            };
+        }
     }
 
 </script>
