@@ -34,27 +34,6 @@ http://localhost:8080/index4.html
 * Export Netflow data from existing interface: [Softflowd](https://github.com/davidediger/softflowd), [Ntop](http://ntop.org)
 
 
-## Some Notes
-
- Some notes to take in consideration when implementing Project Drift.
-
- * add "sender address" to the flow
- * add "location" to the flow
- * should the template be cached after restart of application or is in-memory sufficient
- * ensure to verify each received package
- * ensure to check for missing sequences (if possible)
- * how to deal with compression of data?!
- * sflow: which version should be supported (4 or 5)?
- * sflow: http://www.sflow.org/developers/specifications.php
- * jflow: is identical to netflow
- * jflow: which version should be supported (5, 8, 9) ?
- * v9 ensure that "sender" and "tempalte id" are cached
- * v9 where to get Length N from, e.g. IN_BYTES (default=4)
- * v9 have a look at options templates and options data records and implement accordingly
- * if elasticsearch is used, what should be the index and type?
-    * [flowanalyzer](https://gitlab.com/thart/flowanalyzer) uses `sflow-YEAR-MONTH-DAY/Flow` (sflow), `flow-YEAR-MONTH-DAY/Flow` (netflow 5,9, ipfix) 
-    * [Logstash Code Plugin](https://github.com/logstash-plugins/logstash-codec-netflow) uses `logstash-YEAR.MONTH.DAY/logs`
-    
  ## Existing Flow Analyzer Tools
  An uncomplete, unevaluated list of existing flow analyzer tools, for samples, implementation details, documentation, etc:
  See also libraries (below).
@@ -70,3 +49,25 @@ http://localhost:8080/index4.html
   * sflow, ipfix: https://github.com/de-cix/jFlowLib
   * netflow 5,9 (no options) (Scala): https://github.com/wasted/netflow
   * jflow: https://github.com/aptivate/netgraph/tree/master/jflow-0.3
+  
+## Some Notes
+
+Some notes to take in consideration when implementing Project Drift.
+
+* add "sender address" to the flow
+* add "location" to the flow
+* should the template be cached after restart of application or is in-memory sufficient
+* ensure to verify each received package
+* ensure to check for missing sequences (if possible)
+* how to deal with compression of data?!
+* sflow: which version should be supported (4 or 5)?
+* sflow: http://www.sflow.org/developers/specifications.php
+* jflow: is identical to netflow
+* jflow: which version should be supported (5, 8, 9) ?
+* v9 ensure that "sender" and "tempalte id" are cached
+* v9 where to get Length N from, e.g. IN_BYTES (default=4)
+* v9 have a look at options templates and options data records and implement accordingly
+* if elasticsearch is used, what should be the index and type?
+  * [flowanalyzer](https://gitlab.com/thart/flowanalyzer) uses `sflow-YEAR-MONTH-DAY/Flow` (sflow), `flow-YEAR-MONTH-DAY/Flow` (netflow 5,9, ipfix) 
+  * [Logstash Code Plugin](https://github.com/logstash-plugins/logstash-codec-netflow) uses `logstash-YEAR.MONTH.DAY/logs`
+  
