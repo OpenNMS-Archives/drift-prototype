@@ -275,6 +275,15 @@
             }
         };
         return elasticQuery(interval, searchBody).then(function(body) {
+            // ensure it is defined
+            if (body === undefined || body.aggregations === undefined) {
+                body = {
+                    aggregations: {
+                        bandwidth: {buckets: []}
+                    }
+                };
+            }
+
             // convert
             var sourceBandwidth = body.aggregations.bandwidth.buckets;
             var nodes = {};
@@ -405,6 +414,16 @@
                 })
             }
 
+            // Ensure it is defined
+            if (body === undefined || body.aggregations === undefined) {
+                body = {
+                    aggregations: {
+                        sourceBandwidth: {buckets: []},
+                        targetBandwidth: {buckets: []}
+                    }
+                };
+            }
+
             var sourceBandwith = simplyfy(body.aggregations.sourceBandwidth.buckets);
             var targetBandwith = simplyfy(body.aggregations.targetBandwidth.buckets);
 
@@ -428,7 +447,7 @@
             if (error) {
                 console.error('elasticsearch cluster is down!');
             } else {
-                console.log('All is well');
+                console.log('Connection to elasticsearch cluster is well');
             }
         });
 
@@ -452,7 +471,8 @@
             console.log("Data received:", body);
             return body;
         }, function (error) {
-            console.trace(error.message);
+            console.error(error);
+            return {};
         });
     }
 
