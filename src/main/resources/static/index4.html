@@ -486,16 +486,27 @@
                     if (source.targets && source.targets.buckets) {
                         source.targets.buckets.forEach(function(target) {
                             if (links[source.key] === undefined) {
-                                links[source.key] = {
-                                    source: source.key,
-                                    targets: [target.key],
-                                    values: [target.sum_octets.value]
-                                };
+                                // Ensure the relation in the other direction does not exist
+                                if (links[target.key] === undefined || links[target.key].targets.indexOf(source.key) === -1) {
+                                    links[source.key] = {
+                                        source: source.key,
+                                        targets: [target.key],
+                                        values: [target.sum_octets.value]
+                                    };
+                                } else { // otherwise add it to the target relation
+                                    var index = links[target.key].targets.indexOf(source.key);
+                                    links[target.key].values[index] += target.sum_octets.value;
+                                }
                             } else { // a link is already existing
                                 // if the target already exist, merge them
-                                var index = links[source.key].targets.indexOf(target.key);
-                                if (index >= 0) {
-                                    links[source.key].values[index] += target.sum_octets.value;
+                                var indexSource = links[source.key].targets.indexOf(target.key);
+                                var indexTarget = links[target.key] ? links[target.key].targets.indexOf(source.key) : -1;
+
+                                // this relation is already defined, add it
+                                if (indexTarget >= 0) {
+                                    links[target.key].values[indexTarget] += target.sum_octets.value;
+                                } else if (indexSource >= 0) {
+                                    links[source.key].values[indexSource] += target.sum_octets.value;
                                 } else { // target does not exist, add
                                     links[source.key].targets.push(target.key);
                                     links[source.key].values.push(target.sum_octets.value);
