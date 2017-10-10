@@ -28,29 +28,11 @@
 
 package org.opennms.drift.converter;
 
-import java.util.Arrays;
+import java.math.BigInteger;
 
 public class IntegerConverter {
 
     public Integer convert(byte[] input) {
-        if (input.length == 1) {
-            return input[0] & 0xFF;
-        } else if (input.length == 2) {
-            int result = input[1] & 0xFF;
-            result |= ((input[0] << 8) & 0xFF00);
-            return result;
-        } else if(input.length == 3) {
-            int result  = input[2] & 0xFF;
-            result |= ((input[1] << 8) & 0xFF00);
-            result |= ((input[0] << 16) & 0xFF0000);
-            return result;
-        } else if (input.length == 4) {
-            int result  = input[3] & 0xFF;
-            result |= ((input[2] << 8) & 0xFF00);
-            result |= ((input[1] << 16) & 0xFF0000);
-            result |= ((input[0] << 24) & 0xFF000000);
-            return result;
-        }
-        throw new IllegalArgumentException("Cannot convert " + Arrays.toString(input) + " to int");
+        return new BigInteger(1, input).intValue();
     }
 }
